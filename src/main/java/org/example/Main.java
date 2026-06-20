@@ -7,10 +7,13 @@ import org.example.graph.GraphHtmlExporter;
 import org.example.graph.GraphWriter;
 import org.example.graph.KnowledgeGraph;
 import org.example.graph.KnowledgeGraphBuilder;
+import org.example.llm.EmbeddingClient;
 import org.example.llm.EmbeddingDocumentBuilder;
 import org.example.llm.LlmEnricher;
 import org.example.model.FileChunk;
 import org.example.model.FileType;
+import org.example.store.GraphStore;
+import org.example.store.VectorStore;
 import org.example.writer.ChunkWriter;
 
 import java.io.IOException;
@@ -40,16 +43,19 @@ public class Main {
         int[] counters = {0, 0}; // [totalFiles, totalChunks]
 
         LlmEnricher enricher = LlmEnricher.create();
-        if (enricher != null) {
-            System.out.println("  LLM Enrichment : ENABLED (model: " + enricher.getModel() + ")");
-        } else {
-            System.out.println("  LLM Enrichment : DISABLED (set OPENAI_API_KEY to enable)");
-        }
+        System.out.println("  LLM Enrichment : "
+            + (enricher != null ? "ENABLED (model: " + enricher.getModel() + ")" : "DISABLED (set OPENAI_API_KEY)"));
 
-        // ── Source fetch (GitHub / Bitbucket / ZIP — set SOURCE_URL env var) ──
+        EmbeddingClient embedder = EmbeddingClient.create();
+        System.out.println("  Embeddings     : "
+            + (embedder != null ? "ENABLED (model: " + embedder.getModel() + ")" : "DISABLED (set OPENAI_API_KEY)"));
+
+        // All chunks accumulated here for bulk embed + DB store at the end
+        List<FileChunk> allChunks = new ArrayList<>();
+
+        // ── Source fetch ──────────────────────────────────────────────
         System.out.println("\n--- Remote Source ---");
         SourceFetcher fetcher = new SourceFetcher();
-        // Cache dir: SOURCE_CACHE_DIR env var, else derived from repo name
         String cacheDirName = System.getenv("SOURCE_CACHE_DIR");
         if (cacheDirName == null || cacheDirName.isBlank()) cacheDirName = fetcher.getRepoName();
         Path cardDemoRoot = inputRoot.resolve("github").resolve(cacheDirName);
@@ -60,15 +66,18 @@ public class Main {
             System.out.println("  Continuing with locally cached files (if any)...");
         }
 
-        // ── Local insurance files (flat directory scan) ───────────
+        // ── Local insurance files (flat directory scan) ───────────────
         processFlat(inputRoot.resolve("copybooks"), FileType.COPYBOOK,
-            cobolChunker, null, "INSURANCE COPYBOOKS", graphBuilder, writer, outputDir, counters, enricher);
+            cobolChunker, null, "INSURANCE COPYBOOKS",
+            graphBuilder, writer, outputDir, counters, enricher, allChunks);
         processFlat(inputRoot.resolve("cobol"), FileType.COBOL_PROGRAM,
-            cobolChunker, null, "INSURANCE COBOL", graphBuilder, writer, outputDir, counters, enricher);
+            cobolChunker, null, "INSURANCE COBOL",
+            graphBuilder, writer, outputDir, counters, enricher, allChunks);
         processFlat(inputRoot.resolve("jcl"), null,
-            null, jclChunker, "INSURANCE JCL", graphBuilder, writer, outputDir, counters, enricher);
+            null, jclChunker, "INSURANCE JCL",
+            graphBuilder, writer, outputDir, counters, enricher, allChunks);
 
-        // ── Remote source: full recursive traversal of ALL subdirectories ──
+        // ── Remote source: recursive traversal ───────────────────────
         if (Files.exists(cardDemoRoot)) {
             System.out.println("\n--- Processing: REMOTE SOURCE — " + cacheDirName + " (recursive) ---");
             try {
@@ -80,21 +89,18 @@ public class Main {
                             String ext = getExtension(p.getFileName().toString()).toLowerCase();
                             return ext.equals("cbl") || ext.equals("cpy") || ext.equals("jcl");
                         })
-                        // Process copybooks first, then programs, then JCL
                         .sorted(Comparator.comparing((Path p) -> {
                             String ext = getExtension(p.getFileName().toString()).toLowerCase();
                             return switch (ext) { case "cpy" -> "1"; case "cbl" -> "2"; default -> "3"; };
                         }).thenComparing(p -> p.getFileName().toString()))
                         .toList();
                 }
-
-                System.out.println("  Found " + cardFiles.size() + " source files across all subdirectories");
+                System.out.println("  Found " + cardFiles.size() + " source files");
 
                 for (Path file : cardFiles) {
                     String fileName = file.getFileName().toString();
-                    String ext = getExtension(fileName).toLowerCase();
-                    String relPath = cardDemoRoot.relativize(file).toString();
-                    System.out.print("  " + relPath + " ... ");
+                    String ext      = getExtension(fileName).toLowerCase();
+                    System.out.print("  " + cardDemoRoot.relativize(file) + " ... ");
 
                     List<FileChunk> chunks;
                     try {
@@ -114,6 +120,7 @@ public class Main {
                         EmbeddingDocumentBuilder.process(chunks);
                         try { writer.writeChunks(chunks, outputDir, fileName); }
                         catch (IOException e) { System.out.println("WRITE ERROR: " + e.getMessage()); continue; }
+                        allChunks.addAll(chunks);
                         System.out.println(chunks.size() + " chunks");
                         counters[0]++;
                         counters[1] += chunks.size();
@@ -122,35 +129,123 @@ public class Main {
                     }
                 }
             } catch (IOException e) {
-                System.out.println("ERROR walking carddemo: " + e.getMessage());
+                System.out.println("ERROR walking source: " + e.getMessage());
             }
         }
 
-        // ── Knowledge Graph ─────────────────────────────────────────
+        // ── Knowledge Graph — JSON + HTML ─────────────────────────────
         System.out.println("\n--- Knowledge Graph ---");
+        KnowledgeGraph graph = null;
         try {
-            KnowledgeGraph graph = graphBuilder.build();
+            graph = graphBuilder.build();
             new GraphWriter().write(graph, outputDir);
             new GraphHtmlExporter().export(graph, outputDir);
         } catch (Exception e) {
             System.out.println("ERROR writing graph: " + e.getMessage());
-            e.printStackTrace();
         }
 
-        // ── Summary ──────────────────────────────────────────────────
+        // ── Embed all chunks (batched) ────────────────────────────────
+        Map<String, float[]> embeddingMap = embedAll(allChunks, embedder);
+
+        // ── Store chunks → PostgreSQL / pgvector ──────────────────────
+        storeToVectorDB(allChunks, embeddingMap);
+
+        // ── Store knowledge graph → Neo4j ─────────────────────────────
+        if (graph != null) storeToNeo4j(graph);
+
+        // ── Summary ───────────────────────────────────────────────────
         System.out.println("\n============================================");
         System.out.println("  INGESTION COMPLETE");
-        System.out.printf("  Files processed : %d%n", counters[0]);
-        System.out.printf("  Total chunks    : %d%n", counters[1]);
-        System.out.println("  Output directory: " + outputDir.toAbsolutePath());
+        System.out.printf("  Files processed   : %d%n", counters[0]);
+        System.out.printf("  Total chunks      : %d%n", counters[1]);
+        System.out.printf("  Embeddings stored : %d%n", embeddingMap.size());
+        System.out.println("  Output directory  : " + outputDir.toAbsolutePath());
         System.out.println("============================================");
     }
+
+    // ─── Embed all embeddable chunks in BATCH_SIZE batches ─────────────────────
+
+    private static Map<String, float[]> embedAll(List<FileChunk> allChunks,
+                                                   EmbeddingClient embedder) {
+        System.out.println("\n--- Generating Embeddings ---");
+        Map<String, float[]> result = new HashMap<>();
+
+        if (embedder == null) {
+            System.out.println("  Skipped (OPENAI_API_KEY not set)");
+            return result;
+        }
+
+        List<FileChunk> embeddable = allChunks.stream()
+            .filter(c -> c.isShouldEmbed() && c.getEmbeddingText() != null)
+            .toList();
+
+        System.out.printf("  Embedding %d chunks (batch size %d)...%n",
+            embeddable.size(), EmbeddingClient.BATCH_SIZE);
+
+        for (int i = 0; i < embeddable.size(); i += EmbeddingClient.BATCH_SIZE) {
+            List<FileChunk> batch = embeddable.subList(
+                i, Math.min(i + EmbeddingClient.BATCH_SIZE, embeddable.size()));
+            List<String> texts = batch.stream().map(FileChunk::getEmbeddingText).toList();
+
+            try {
+                List<float[]> vecs = embedder.embedBatch(texts);
+                for (int j = 0; j < batch.size(); j++) {
+                    result.put(batch.get(j).getChunkId(), vecs.get(j));
+                }
+                System.out.printf("  ... %d/%d embedded%n",
+                    Math.min(i + EmbeddingClient.BATCH_SIZE, embeddable.size()), embeddable.size());
+
+                if (i + EmbeddingClient.BATCH_SIZE < embeddable.size()) {
+                    Thread.sleep(150); // stay within rate limits
+                }
+            } catch (Exception e) {
+                System.out.println("  WARNING: batch " + (i / EmbeddingClient.BATCH_SIZE + 1)
+                    + " failed: " + e.getMessage());
+            }
+        }
+
+        System.out.println("  ✓ " + result.size() + " embeddings generated");
+        return result;
+    }
+
+    // ─── Store to PostgreSQL / pgvector ────────────────────────────────────────
+
+    private static void storeToVectorDB(List<FileChunk> allChunks,
+                                         Map<String, float[]> embeddingMap) {
+        System.out.println("\n--- Storing to PostgreSQL (pgvector) ---");
+        try (VectorStore store = VectorStore.create()) {
+            store.upsertChunks(allChunks, embeddingMap);
+            System.out.println("  ✓ " + allChunks.size() + " chunks stored");
+            System.out.println("    pgAdmin → http://localhost:5050");
+        } catch (Exception e) {
+            System.out.println("  ERROR: " + e.getMessage());
+            System.out.println("  Is PostgreSQL running?  →  docker compose up -d postgres");
+        }
+    }
+
+    // ─── Store knowledge graph to Neo4j ────────────────────────────────────────
+
+    private static void storeToNeo4j(KnowledgeGraph graph) {
+        System.out.println("\n--- Storing Knowledge Graph to Neo4j ---");
+        try (GraphStore store = GraphStore.create()) {
+            store.ingestGraph(graph);
+            int nodes = graph.getNodes() != null ? graph.getNodes().size() : 0;
+            int edges = graph.getEdges() != null ? graph.getEdges().size() : 0;
+            System.out.println("  ✓ " + nodes + " nodes, " + edges + " edges stored");
+            System.out.println("    Neo4j Browser → http://localhost:7474  (neo4j / admin)");
+        } catch (Exception e) {
+            System.out.println("  ERROR: " + e.getMessage());
+            System.out.println("  Is Neo4j running?  →  docker compose up -d neo4j");
+        }
+    }
+
+    // ─── processFlat ───────────────────────────────────────────────────────────
 
     private static void processFlat(Path dir, FileType cobolType,
                                      CobolChunker cobolChunker, JclChunker jclChunker,
                                      String label, KnowledgeGraphBuilder graphBuilder,
                                      ChunkWriter writer, Path outputDir, int[] counters,
-                                     LlmEnricher enricher) {
+                                     LlmEnricher enricher, List<FileChunk> allChunks) {
         if (!Files.exists(dir)) return;
         System.out.println("\n--- Processing: " + label + " ---");
 
@@ -193,6 +288,7 @@ public class Main {
                 EmbeddingDocumentBuilder.process(chunks);
                 try { writer.writeChunks(chunks, outputDir, fileName); }
                 catch (IOException e) { System.out.println("WRITE ERROR: " + e.getMessage()); continue; }
+                allChunks.addAll(chunks);
                 System.out.println(chunks.size() + " chunks");
                 counters[0]++;
                 counters[1] += chunks.size();
@@ -201,6 +297,8 @@ public class Main {
             }
         }
     }
+
+    // ─── Utilities ─────────────────────────────────────────────────────────────
 
     private static Path findResourcesDir() {
         Path cwd = Path.of(System.getProperty("user.dir"));

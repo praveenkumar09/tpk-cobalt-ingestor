@@ -1,0 +1,13 @@
+{
+    "Servers": {
+        "1": {
+            "Name": "Cobalt Ingestor",
+            "Group": "Servers",
+            "Host": "postgres",
+            "Port": 5432,
+            "MaintenanceDB": "ingestor",
+            "Username": "admin",
+            "SSLMode": "prefer"
+        }
+    }
+}
