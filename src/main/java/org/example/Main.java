@@ -7,6 +7,8 @@ import org.example.graph.GraphHtmlExporter;
 import org.example.graph.GraphWriter;
 import org.example.graph.KnowledgeGraph;
 import org.example.graph.KnowledgeGraphBuilder;
+import org.example.llm.EmbeddingDocumentBuilder;
+import org.example.llm.LlmEnricher;
 import org.example.model.FileChunk;
 import org.example.model.FileType;
 import org.example.writer.ChunkWriter;
@@ -37,6 +39,13 @@ public class Main {
         ChunkWriter  writer       = new ChunkWriter();
         int[] counters = {0, 0}; // [totalFiles, totalChunks]
 
+        LlmEnricher enricher = LlmEnricher.create();
+        if (enricher != null) {
+            System.out.println("  LLM Enrichment : ENABLED (model: " + enricher.getModel() + ")");
+        } else {
+            System.out.println("  LLM Enrichment : DISABLED (set OPENAI_API_KEY to enable)");
+        }
+
         // ── Source fetch (GitHub / Bitbucket / ZIP — set SOURCE_URL env var) ──
         System.out.println("\n--- Remote Source ---");
         SourceFetcher fetcher = new SourceFetcher();
@@ -53,11 +62,11 @@ public class Main {
 
         // ── Local insurance files (flat directory scan) ───────────
         processFlat(inputRoot.resolve("copybooks"), FileType.COPYBOOK,
-            cobolChunker, null, "INSURANCE COPYBOOKS", graphBuilder, writer, outputDir, counters);
+            cobolChunker, null, "INSURANCE COPYBOOKS", graphBuilder, writer, outputDir, counters, enricher);
         processFlat(inputRoot.resolve("cobol"), FileType.COBOL_PROGRAM,
-            cobolChunker, null, "INSURANCE COBOL", graphBuilder, writer, outputDir, counters);
+            cobolChunker, null, "INSURANCE COBOL", graphBuilder, writer, outputDir, counters, enricher);
         processFlat(inputRoot.resolve("jcl"), null,
-            null, jclChunker, "INSURANCE JCL", graphBuilder, writer, outputDir, counters);
+            null, jclChunker, "INSURANCE JCL", graphBuilder, writer, outputDir, counters, enricher);
 
         // ── Remote source: full recursive traversal of ALL subdirectories ──
         if (Files.exists(cardDemoRoot)) {
@@ -101,6 +110,8 @@ public class Main {
                     }
 
                     if (!chunks.isEmpty()) {
+                        if (enricher != null) enricher.enrichChunks(chunks);
+                        EmbeddingDocumentBuilder.process(chunks);
                         try { writer.writeChunks(chunks, outputDir, fileName); }
                         catch (IOException e) { System.out.println("WRITE ERROR: " + e.getMessage()); continue; }
                         System.out.println(chunks.size() + " chunks");
@@ -138,7 +149,8 @@ public class Main {
     private static void processFlat(Path dir, FileType cobolType,
                                      CobolChunker cobolChunker, JclChunker jclChunker,
                                      String label, KnowledgeGraphBuilder graphBuilder,
-                                     ChunkWriter writer, Path outputDir, int[] counters) {
+                                     ChunkWriter writer, Path outputDir, int[] counters,
+                                     LlmEnricher enricher) {
         if (!Files.exists(dir)) return;
         System.out.println("\n--- Processing: " + label + " ---");
 
@@ -177,6 +189,8 @@ public class Main {
             }
 
             if (!chunks.isEmpty()) {
+                if (enricher != null) enricher.enrichChunks(chunks);
+                EmbeddingDocumentBuilder.process(chunks);
                 try { writer.writeChunks(chunks, outputDir, fileName); }
                 catch (IOException e) { System.out.println("WRITE ERROR: " + e.getMessage()); continue; }
                 System.out.println(chunks.size() + " chunks");

@@ -18,7 +18,7 @@ import java.util.List;
     "externalProgramsCalled", "paragraphsCalled",
     "keyDataFields", "businessConditions",
     "hasFileIO", "hasErrorHandling",
-    "tags", "content"
+    "tags", "shouldEmbed", "embeddingText", "content"
 })
 public class FileChunk {
 
@@ -63,6 +63,8 @@ public class FileChunk {
     private boolean hasErrorHandling;
 
     private List<String> tags;
+    private boolean shouldEmbed;
+    private String embeddingText;
     private String content;
 
     public String getChunkId() { return chunkId; }
@@ -154,6 +156,12 @@ public class FileChunk {
 
     public List<String> getTags() { return tags; }
     public void setTags(List<String> tags) { this.tags = tags; }
+
+    public boolean isShouldEmbed() { return shouldEmbed; }
+    public void setShouldEmbed(boolean shouldEmbed) { this.shouldEmbed = shouldEmbed; }
+
+    public String getEmbeddingText() { return embeddingText; }
+    public void setEmbeddingText(String embeddingText) { this.embeddingText = embeddingText; }
 
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }

@@ -44,6 +44,13 @@ public class CobolChunker {
         "^\\s+ENTRY\\s+'([A-Z][A-Z0-9]+)'",
         Pattern.CASE_INSENSITIVE);
 
+    // Numbered paragraph headers in PROCEDURE DIVISION (no SECTION keyword)
+    // e.g. "       1000-ACCTFILE-GET-NEXT." or "       0000-MAIN-PARA."
+    // Requires 6+ leading spaces so statements/data names at Area B are not matched
+    private static final Pattern PARA_PAT = Pattern.compile(
+        "^\\s{6,}([0-9]{1,4}-[A-Z][A-Z0-9-]+)\\.\\s*$",
+        Pattern.CASE_INSENSITIVE);
+
     // 01-level records in copybooks
     private static final Pattern COPY_RECORD_PAT = Pattern.compile(
         "^\\s+01\\s+([A-Z][A-Z0-9-]+)",
@@ -208,6 +215,22 @@ public class CobolChunker {
                     currentChunkLines = new ArrayList<>();
                     currentChunkLines.add(line);
                     continue;
+                }
+
+                // Numbered paragraph headers: 1000-NAME. or 0000-MAIN-PARA.
+                Matcher paraMatcher = PARA_PAT.matcher(line);
+                if (!isComment && paraMatcher.matches()) {
+                    String paraName = paraMatcher.group(1).toUpperCase();
+                    if (!isKeyword(paraName)) {
+                        saveChunk(chunks, currentChunkLines, currentDivision, currentSectionName,
+                            chunkStartLine, i, fileName, meta);
+                        currentSection = paraName;
+                        currentSectionName = paraName;
+                        chunkStartLine = i + 1;
+                        currentChunkLines = new ArrayList<>();
+                        currentChunkLines.add(line);
+                        continue;
+                    }
                 }
             }
 
