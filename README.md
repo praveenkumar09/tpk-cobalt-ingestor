@@ -69,14 +69,21 @@ On first run this downloads the configured source repository (~5–10 s). Subseq
 
 ### With a custom repository
 
-```bash
-SOURCE_URL=https://github.com/my-org/my-cobol-repo mvn exec:java
-```
+The tool traverses the **entire repository** by default, finding every `.cbl`, `.cpy`, and `.jcl` file regardless of where they sit in the folder tree.
 
 ```bash
-SOURCE_URL=https://bitbucket.org/my-workspace/my-repo \
-SOURCE_BRANCH=develop \
-SOURCE_SUBDIR=src \
+# GitHub — processes all COBOL/JCL files found anywhere in the repo
+SOURCE_URL=https://github.com/my-org/my-cobol-repo mvn exec:java
+
+# GitHub with a specific branch
+SOURCE_URL=https://github.com/cicsdev/cics-genapp SOURCE_BRANCH=main mvn exec:java
+
+# Bitbucket
+SOURCE_URL=https://bitbucket.org/my-workspace/my-repo SOURCE_BRANCH=develop mvn exec:java
+
+# Restrict to a specific subdirectory (e.g. carddemo's app/ folder only)
+SOURCE_URL=https://github.com/aws-samples/aws-mainframe-modernization-carddemo \
+SOURCE_SUBDIR=app \
 mvn exec:java
 ```
 
@@ -88,7 +95,7 @@ mvn exec:java
 |---|---|---|
 | `SOURCE_URL` | carddemo (AWS sample) | Full URL to a GitHub or Bitbucket repo page, or a direct `.zip` URL |
 | `SOURCE_BRANCH` | `main` | Branch to download |
-| `SOURCE_SUBDIR` | `app` | Subdirectory inside the repo to process. Set to `""` to process the entire repo |
+| `SOURCE_SUBDIR` | _(empty — entire repo)_ | Subdirectory inside the repo to limit extraction to. Leave unset to traverse every folder in the repo |
 | `SOURCE_CACHE_DIR` | Derived from repo name | Local folder name under `input/github/` for the downloaded cache |
 
 ### Supported URL formats
@@ -102,6 +109,13 @@ https://example.com/path/to/archive.zip
 ```
 
 The ZIP root prefix (e.g., `repo-main/` for GitHub, `repo-abc123/` for Bitbucket) is detected dynamically, so the tool works with either hosting provider without manual configuration.
+
+### Tested repositories
+
+| Repository | Command |
+|---|---|
+| AWS CardDemo (banking) | `mvn exec:java` _(default)_ |
+| IBM cics-genapp (insurance) | `SOURCE_URL=https://github.com/cicsdev/cics-genapp SOURCE_BRANCH=main mvn exec:java` |
 
 ---
 
@@ -164,9 +178,9 @@ One file per source file, each containing an array of chunk objects:
 
 ### `knowledge_graph.json`
 
-A graph of all programs, copybooks, database files, entry points, and JCL jobs with their relationships.
+A graph of all programs, copybooks, database files, entry points, and JCL jobs with their relationships. Stats scale with the repository being processed.
 
-**Current stats (carddemo + insurance sample):**
+**Example stats — AWS carddemo + local insurance sample (165 source files):**
 
 | Node type | Count |
 |---|---|
@@ -177,22 +191,31 @@ A graph of all programs, copybooks, database files, entry points, and JCL jobs w
 | ENTRY\_POINT | 6 |
 | **Total** | **283** |
 
-| Edge type | Count | Meaning |
-|---|---|---|
-| COPIES | 264 | Program copies a copybook |
-| EXECUTES | 74 | JCL job executes a program |
-| READS | 68 | Program reads a file |
-| CALLS | 35 | Program calls another program |
-| WRITES | 28 | Program writes a file |
-| USES\_DATASET | 26 | JCL job references a dataset |
-| UPDATES | 12 | Program rewrites a file |
-| EXPOSES | 8 | Program exposes an entry point |
-| DELETES\_FROM | 2 | Program deletes from a file |
-| **Total** | **517** | |
+**Example stats — cics-genapp + local insurance sample (86 source files):**
+
+| Node type | Count |
+|---|---|
+| COBOL\_PROGRAM | 54 |
+| COPYBOOK | 28 |
+| JCL\_JOB | 29 |
+| DATABASE\_FILE | 9 |
+| **Total** | **120** |
+
+| Edge type | Meaning |
+|---|---|
+| COPIES | Program copies a copybook |
+| EXECUTES | JCL job executes a program |
+| READS | Program reads a file |
+| CALLS | Program calls another program |
+| WRITES | Program writes a file |
+| USES\_DATASET | JCL job references a dataset |
+| UPDATES | Program rewrites a file |
+| EXPOSES | Program exposes an entry point |
+| DELETES\_FROM | Program deletes from a file |
 
 ### `graph_visualization.html`
 
-An interactive browser-based graph explorer. Open directly in any browser — no server needed, no internet needed (vis.js is embedded).
+An interactive browser-based graph explorer. Open directly in any browser — no server needed, no internet needed in the browser (vis.js is downloaded once by Java on first run and embedded inline into the HTML file).
 
 **Features:**
 - Search by program or file name

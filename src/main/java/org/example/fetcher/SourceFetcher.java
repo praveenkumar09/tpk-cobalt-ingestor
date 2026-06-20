@@ -18,8 +18,8 @@ import java.util.zip.*;
  *                          https://bitbucket.org/workspace/repo
  *                          https://bitbucket.org/workspace/repo/src/mybranch
  *   SOURCE_BRANCH  — branch name (default: main)
- *   SOURCE_SUBDIR  — subdirectory inside the repo to process (default: app).
- *                    Set to empty string to process the entire repo.
+ *   SOURCE_SUBDIR  — subdirectory inside the repo to process (default: empty = entire repo).
+ *                    e.g. SOURCE_SUBDIR=app limits to the carddemo app/ folder.
  *
  * Backward-compat env vars still supported:
  *   GITHUB_REPO_URL, GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH
@@ -30,7 +30,9 @@ public class SourceFetcher {
     private static final String DEFAULT_OWNER  = "aws-samples";
     private static final String DEFAULT_REPO   = "aws-mainframe-modernization-carddemo";
     private static final String DEFAULT_BRANCH = "main";
-    private static final String DEFAULT_SUBDIR = "app";
+    // Empty = process entire repo (works for any repo structure).
+    // Set SOURCE_SUBDIR=app to limit to carddemo's app/ subdirectory.
+    private static final String DEFAULT_SUBDIR = "";
 
     private static final Set<String> SUPPORTED_EXTS = Set.of("cbl", "cpy", "jcl");
 

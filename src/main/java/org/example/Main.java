@@ -59,9 +59,9 @@ public class Main {
         processFlat(inputRoot.resolve("jcl"), null,
             null, jclChunker, "INSURANCE JCL", graphBuilder, writer, outputDir, counters);
 
-        // ── CardDemo: full recursive traversal of ALL subdirectories ──
+        // ── Remote source: full recursive traversal of ALL subdirectories ──
         if (Files.exists(cardDemoRoot)) {
-            System.out.println("\n--- Processing: CARDDEMO (recursive — all subdirectories) ---");
+            System.out.println("\n--- Processing: REMOTE SOURCE — " + cacheDirName + " (recursive) ---");
             try {
                 List<Path> cardFiles;
                 try (Stream<Path> walk = Files.walk(cardDemoRoot)) {
