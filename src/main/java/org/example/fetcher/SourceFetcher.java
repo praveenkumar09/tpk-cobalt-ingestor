@@ -42,6 +42,8 @@ public class SourceFetcher {
     private final String  subDir;
     private final String  repoName;
     private final SourceType sourceType;
+    private String owner;   // GitHub owner/org — null for non-GitHub sources
+    private String branch;  // resolved branch name
 
     public SourceFetcher() {
         String sourceUrl = env("SOURCE_URL", env("GITHUB_REPO_URL", null));
@@ -54,25 +56,33 @@ public class SourceFetcher {
 
         if (sourceUrl == null || sourceUrl.isBlank()) {
             // Fallback: individual GITHUB_* env vars
-            String owner = env("GITHUB_OWNER", sys("github.owner", DEFAULT_OWNER));
-            String repo  = env("GITHUB_REPO",  sys("github.repo",  DEFAULT_REPO));
+            String ghOwner = env("GITHUB_OWNER", sys("github.owner", DEFAULT_OWNER));
+            String repo    = env("GITHUB_REPO",  sys("github.repo",  DEFAULT_REPO));
             this.sourceType = SourceType.GITHUB;
             this.repoName   = repo;
-            this.zipUrl     = githubZipUrl(owner, repo, branch);
+            this.owner      = ghOwner;
+            this.branch     = branch;
+            this.zipUrl     = githubZipUrl(ghOwner, repo, branch);
         } else if (isDirectZip(sourceUrl)) {
             this.sourceType = SourceType.DIRECT_ZIP;
             this.repoName   = repoNameFromZipUrl(sourceUrl);
             this.zipUrl     = sourceUrl;
+            this.owner      = null;
+            this.branch     = null;
         } else if (sourceUrl.contains("github.com")) {
             this.sourceType = SourceType.GITHUB;
             String[] parsed = parseGitHub(sourceUrl, branch);   // [owner, repo, branch]
             this.repoName   = parsed[1];
+            this.owner      = parsed[0];
+            this.branch     = parsed[2];
             this.zipUrl     = githubZipUrl(parsed[0], parsed[1], parsed[2]);
             branch = parsed[2];
         } else if (sourceUrl.contains("bitbucket.org")) {
             this.sourceType = SourceType.BITBUCKET;
             String[] parsed = parseBitbucket(sourceUrl, branch); // [workspace, repo, branch]
             this.repoName   = parsed[1];
+            this.owner      = null;  // Bitbucket SHA check not supported
+            this.branch     = parsed[2];
             this.zipUrl     = bitbucketZipUrl(parsed[0], parsed[1], parsed[2]);
             branch = parsed[2];
         } else {
@@ -80,6 +90,8 @@ public class SourceFetcher {
             this.sourceType = SourceType.DIRECT_ZIP;
             this.repoName   = repoNameFromZipUrl(sourceUrl);
             this.zipUrl     = sourceUrl;
+            this.owner      = null;
+            this.branch     = null;
         }
 
         System.out.println("  Source type  : " + this.sourceType);
@@ -90,6 +102,42 @@ public class SourceFetcher {
     // ── Public API ──────────────────────────────────────────────────
 
     public String getRepoName() { return repoName; }
+
+    /**
+     * Calls the GitHub Commits API to get the current HEAD SHA for the tracked branch.
+     * Returns null for non-GitHub sources or when the API call fails.
+     * Set GITHUB_TOKEN env var to avoid rate limiting (5 000 req/hr vs 60/hr anonymous).
+     */
+    public String fetchCurrentCommitSha() {
+        if (sourceType != SourceType.GITHUB || owner == null || branch == null) return null;
+        String apiUrl = "https://api.github.com/repos/" + owner + "/" + repoName + "/commits/" + branch;
+        try {
+            HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(15))
+                .build();
+            HttpRequest.Builder reqBuilder = HttpRequest.newBuilder()
+                .uri(URI.create(apiUrl))
+                // This Accept header tells GitHub to return just the 40-char SHA as plain text
+                .header("Accept", "application/vnd.github.sha")
+                .header("User-Agent", "CobolIngestor/1.0")
+                .GET();
+            String token = System.getenv("GITHUB_TOKEN");
+            if (token != null && !token.isBlank()) {
+                reqBuilder.header("Authorization", "Bearer " + token);
+            }
+            HttpResponse<String> response = client.send(reqBuilder.build(),
+                HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 200) {
+                return response.body().trim().replace("\"", "");
+            }
+            System.out.println("  WARNING: GitHub API returned HTTP " + response.statusCode()
+                + " — SHA check skipped");
+            return null;
+        } catch (Exception e) {
+            System.out.println("  WARNING: Could not fetch commit SHA: " + e.getMessage());
+            return null;
+        }
+    }
 
     /**
      * Downloads and extracts source files into targetDir.

@@ -66,3 +66,22 @@ CREATE INDEX IF NOT EXISTS idx_chunks_payload       ON chunks USING gin (payload
 -- ── HNSW vector index (better accuracy than IVFFlat, no pre-training needed)
 CREATE INDEX IF NOT EXISTS idx_chunks_embedding_hnsw
     ON chunks USING hnsw (embedding vector_cosine_ops);
+
+-- ── source_file index (for incremental delete before re-processing a file) ──
+CREATE INDEX IF NOT EXISTS idx_chunks_source_file ON chunks (source_file);
+
+-- ── Ingestion audit log ──────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS ingestion_runs (
+    run_id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    repo_name             TEXT NOT NULL,
+    commit_sha            TEXT,
+    previous_sha          TEXT,
+    files_processed       INTEGER DEFAULT 0,
+    chunks_upserted       INTEGER DEFAULT 0,
+    embeddings_generated  INTEGER DEFAULT 0,
+    status                TEXT NOT NULL,   -- SUCCESS | NO_CHANGE | FAILED
+    started_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_runs_repo ON ingestion_runs (repo_name, status, completed_at DESC);

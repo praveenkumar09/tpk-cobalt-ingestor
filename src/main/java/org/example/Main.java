@@ -12,6 +12,7 @@ import org.example.llm.EmbeddingDocumentBuilder;
 import org.example.llm.LlmEnricher;
 import org.example.model.FileChunk;
 import org.example.model.FileType;
+import org.example.store.AuditLog;
 import org.example.store.GraphStore;
 import org.example.store.VectorStore;
 import org.example.writer.ChunkWriter;
@@ -53,9 +54,46 @@ public class Main {
         // All chunks accumulated here for bulk embed + DB store at the end
         List<FileChunk> allChunks = new ArrayList<>();
 
+        // ── Audit log + SHA-based change detection ────────────────────
+        AuditLog auditLog = AuditLog.create();
+        if (auditLog == null) {
+            System.out.println("  Audit log    : UNAVAILABLE (PostgreSQL unreachable — SHA check skipped)");
+        }
+
         // ── Source fetch ──────────────────────────────────────────────
         System.out.println("\n--- Remote Source ---");
         SourceFetcher fetcher = new SourceFetcher();
+
+        // Check current commit SHA against the last successful run
+        String currentSha  = fetcher.fetchCurrentCommitSha();
+        String previousSha = null;
+        if (currentSha != null) {
+            System.out.println("  Current SHA  : " + currentSha.substring(0, 8) + "...");
+            if (auditLog != null) {
+                previousSha = auditLog.getLastSuccessfulSha(fetcher.getRepoName());
+                if (previousSha != null && previousSha.equals(currentSha)) {
+                    boolean forceRerun = "true".equalsIgnoreCase(System.getenv("FORCE_RERUN"));
+                    if (!forceRerun) {
+                        System.out.println("  No source changes since last run (SHA: "
+                            + currentSha.substring(0, 8) + "...)");
+                        System.out.println("  Set FORCE_RERUN=true to re-process anyway.");
+                        auditLog.recordRun(fetcher.getRepoName(), currentSha, previousSha,
+                            0, 0, 0, "NO_CHANGE");
+                        auditLog.close();
+                        return;
+                    }
+                    System.out.println("  FORCE_RERUN=true — re-processing despite unchanged SHA.");
+                } else if (previousSha != null) {
+                    System.out.println("  Source changed: " + previousSha.substring(0, 8)
+                        + "... → " + currentSha.substring(0, 8) + "...");
+                } else {
+                    System.out.println("  First run — no previous SHA on record.");
+                }
+            }
+        } else {
+            System.out.println("  SHA check    : SKIPPED (non-GitHub source or API unavailable)");
+        }
+
         String cacheDirName = System.getenv("SOURCE_CACHE_DIR");
         if (cacheDirName == null || cacheDirName.isBlank()) cacheDirName = fetcher.getRepoName();
         Path cardDemoRoot = inputRoot.resolve("github").resolve(cacheDirName);
@@ -153,6 +191,13 @@ public class Main {
         // ── Store knowledge graph → Neo4j ─────────────────────────────
         if (graph != null) storeToNeo4j(graph);
 
+        // ── Record audit log entry ────────────────────────────────────
+        if (auditLog != null) {
+            auditLog.recordRun(fetcher.getRepoName(), currentSha, previousSha,
+                counters[0], counters[1], embeddingMap.size(), "SUCCESS");
+            auditLog.close();
+        }
+
         // ── Summary ───────────────────────────────────────────────────
         System.out.println("\n============================================");
         System.out.println("  INGESTION COMPLETE");
@@ -160,6 +205,9 @@ public class Main {
         System.out.printf("  Total chunks      : %d%n", counters[1]);
         System.out.printf("  Embeddings stored : %d%n", embeddingMap.size());
         System.out.println("  Output directory  : " + outputDir.toAbsolutePath());
+        if (currentSha != null) {
+            System.out.println("  Commit SHA        : " + currentSha);
+        }
         System.out.println("============================================");
     }
 
