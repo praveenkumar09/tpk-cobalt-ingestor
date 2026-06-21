@@ -1,5 +1,7 @@
 package org.example.fetcher;
 
+import org.example.config.AppConfig;
+
 import java.io.*;
 import java.net.URI;
 import java.net.http.*;
@@ -26,13 +28,11 @@ import java.util.zip.*;
  */
 public class SourceFetcher {
 
-    // ── Defaults for the built-in carddemo sample ──────────────────
-    private static final String DEFAULT_OWNER  = "aws-samples";
-    private static final String DEFAULT_REPO   = "aws-mainframe-modernization-carddemo";
-    private static final String DEFAULT_BRANCH = "main";
-    // Empty = process entire repo (works for any repo structure).
-    // Set SOURCE_SUBDIR=app to limit to carddemo's app/ subdirectory.
-    private static final String DEFAULT_SUBDIR = "";
+    // ── Defaults for the built-in carddemo sample (overridable in application.properties) ──
+    private static final String DEFAULT_OWNER  = AppConfig.get("source.default.owner",  "aws-samples");
+    private static final String DEFAULT_REPO   = AppConfig.get("source.default.repo",   "aws-mainframe-modernization-carddemo");
+    private static final String DEFAULT_BRANCH = AppConfig.get("source.default.branch", "main");
+    private static final String DEFAULT_SUBDIR = AppConfig.get("source.default.subdir", "");
 
     private static final Set<String> SUPPORTED_EXTS = Set.of("cbl", "cpy", "jcl");
 

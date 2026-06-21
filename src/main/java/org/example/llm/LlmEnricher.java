@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.model.FileChunk;
 
+import org.example.config.AppConfig;
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -18,18 +20,18 @@ import java.util.Map;
  */
 public class LlmEnricher {
 
-    private static final String OPENAI_URL = "https://api.openai.com/v1/chat/completions";
-    private static final String DEFAULT_MODEL = "gpt-4o-mini";
-    private static final int MAX_CONTENT_CHARS = 2500;
-
     private final String apiKey;
     private final String model;
+    private final String openaiUrl;
+    private final int maxContentChars;
     private final HttpClient http;
     private final ObjectMapper mapper;
 
-    private LlmEnricher(String apiKey, String model) {
-        this.apiKey = apiKey;
-        this.model = model;
+    private LlmEnricher(String apiKey, String model, String openaiUrl, int maxContentChars) {
+        this.apiKey          = apiKey;
+        this.model           = model;
+        this.openaiUrl       = openaiUrl;
+        this.maxContentChars = maxContentChars;
         this.http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(30))
             .build();
@@ -40,8 +42,11 @@ public class LlmEnricher {
     public static LlmEnricher create() {
         String key = System.getenv("OPENAI_API_KEY");
         if (key == null || key.isBlank()) return null;
-        String m = System.getenv("OPENAI_MODEL");
-        return new LlmEnricher(key, (m != null && !m.isBlank()) ? m : DEFAULT_MODEL);
+        String m            = System.getenv("OPENAI_MODEL");
+        String defaultModel = AppConfig.get("openai.chat.model", "gpt-4o-mini");
+        String url          = AppConfig.get("openai.chat.url", "https://api.openai.com/v1/chat/completions");
+        int    maxChars     = AppConfig.getInt("openai.chat.max-content-chars", 2500);
+        return new LlmEnricher(key, (m != null && !m.isBlank()) ? m : defaultModel, url, maxChars);
     }
 
     public String getModel() { return model; }
@@ -78,8 +83,8 @@ public class LlmEnricher {
 
     private String buildPrompt(FileChunk chunk) {
         String content = chunk.getContent();
-        if (content != null && content.length() > MAX_CONTENT_CHARS) {
-            content = content.substring(0, MAX_CONTENT_CHARS) + "\n... [truncated]";
+        if (content != null && content.length() > maxContentChars) {
+            content = content.substring(0, maxContentChars) + "\n... [truncated]";
         }
 
         return String.format(
@@ -127,7 +132,7 @@ public class LlmEnricher {
         );
 
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(OPENAI_URL))
+            .uri(URI.create(openaiUrl))
             .header("Content-Type", "application/json")
             .header("Authorization", "Bearer " + apiKey)
             .timeout(Duration.ofSeconds(60))

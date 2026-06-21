@@ -1,6 +1,7 @@
 package org.example.store;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.example.config.AppConfig;
 import org.example.llm.EmbeddingClient;
 import org.example.model.FileChunk;
 
@@ -60,11 +61,11 @@ public class VectorStore implements AutoCloseable {
     }
 
     public static VectorStore create() throws SQLException {
-        String host = env("PG_HOST", "localhost");
-        String port = env("PG_PORT", "5432");
-        String db   = env("PG_DB",   "ingestor");
-        String user = env("PG_USER", "admin");
-        String pass = env("PG_PASS", "admin");
+        String host = AppConfig.get("PG_HOST", "db.pg.host", "localhost");
+        String port = AppConfig.get("PG_PORT", "db.pg.port", "5432");
+        String db   = AppConfig.get("PG_DB",   "db.pg.name", "ingestor");
+        String user = AppConfig.get("PG_USER", "db.pg.user", "admin");
+        String pass = AppConfig.get("PG_PASS", "db.pg.pass", "admin");
         String url  = "jdbc:postgresql://" + host + ":" + port + "/" + db;
         Connection conn = DriverManager.getConnection(url, user, pass);
         conn.setAutoCommit(false);
@@ -131,8 +132,4 @@ public class VectorStore implements AutoCloseable {
         try { conn.close(); } catch (Exception ignored) {}
     }
 
-    private static String env(String key, String def) {
-        String v = System.getenv(key);
-        return (v != null && !v.isBlank()) ? v : def;
-    }
 }

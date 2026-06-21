@@ -3,6 +3,7 @@ package org.example.store;
 import org.example.graph.GraphEdge;
 import org.example.graph.GraphNode;
 import org.example.graph.KnowledgeGraph;
+import org.example.config.AppConfig;
 import org.neo4j.driver.*;
 import org.neo4j.driver.exceptions.Neo4jException;
 
@@ -27,9 +28,9 @@ public class GraphStore implements AutoCloseable {
     }
 
     public static GraphStore create() {
-        String uri  = env("NEO4J_URI",  "bolt://localhost:7687");
-        String user = env("NEO4J_USER", "neo4j");
-        String pass = env("NEO4J_PASS", "admin");
+        String uri  = AppConfig.get("NEO4J_URI",  "db.neo4j.uri",  "bolt://localhost:7687");
+        String user = AppConfig.get("NEO4J_USER", "db.neo4j.user", "neo4j");
+        String pass = AppConfig.get("NEO4J_PASS", "db.neo4j.pass", "admin");
         Driver driver = GraphDatabase.driver(uri, AuthTokens.basic(user, pass),
             org.neo4j.driver.Config.builder()
                 .withConnectionTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
@@ -103,8 +104,4 @@ public class GraphStore implements AutoCloseable {
         try { driver.close(); } catch (Exception ignored) {}
     }
 
-    private static String env(String key, String def) {
-        String v = System.getenv(key);
-        return (v != null && !v.isBlank()) ? v : def;
-    }
 }

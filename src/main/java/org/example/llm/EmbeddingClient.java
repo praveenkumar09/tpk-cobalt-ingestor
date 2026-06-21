@@ -3,6 +3,8 @@ package org.example.llm;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.example.config.AppConfig;
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -18,29 +20,31 @@ import java.util.Map;
  */
 public class EmbeddingClient {
 
-    public static final int DIMS = 1536;
-    private static final String EMBED_URL   = "https://api.openai.com/v1/embeddings";
-    private static final String DEFAULT_MODEL = "text-embedding-3-small";
-    public static final int BATCH_SIZE = 50;
+    public static final int DIMS       = AppConfig.getInt("openai.embed.dims", 1536);
+    public static final int BATCH_SIZE = AppConfig.getInt("openai.embed.batch-size", 50);
 
     private final String apiKey;
     private final String model;
+    private final String embedUrl;
     private final HttpClient http;
     private final ObjectMapper mapper;
 
-    private EmbeddingClient(String apiKey, String model) {
-        this.apiKey  = apiKey;
-        this.model   = model;
-        this.http    = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build();
-        this.mapper  = new ObjectMapper();
+    private EmbeddingClient(String apiKey, String model, String embedUrl) {
+        this.apiKey    = apiKey;
+        this.model     = model;
+        this.embedUrl  = embedUrl;
+        this.http      = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build();
+        this.mapper    = new ObjectMapper();
     }
 
     /** Returns null when OPENAI_API_KEY is absent — callers skip embedding. */
     public static EmbeddingClient create() {
         String key = System.getenv("OPENAI_API_KEY");
         if (key == null || key.isBlank()) return null;
-        String m = System.getenv("OPENAI_EMBED_MODEL");
-        return new EmbeddingClient(key, (m != null && !m.isBlank()) ? m : DEFAULT_MODEL);
+        String m   = System.getenv("OPENAI_EMBED_MODEL");
+        String url = AppConfig.get("openai.embed.url", "https://api.openai.com/v1/embeddings");
+        String defaultModel = AppConfig.get("openai.embed.model", "text-embedding-3-small");
+        return new EmbeddingClient(key, (m != null && !m.isBlank()) ? m : defaultModel, url);
     }
 
     public String getModel() { return model; }
@@ -58,7 +62,7 @@ public class EmbeddingClient {
         );
 
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(EMBED_URL))
+            .uri(URI.create(embedUrl))
             .header("Content-Type", "application/json")
             .header("Authorization", "Bearer " + apiKey)
             .timeout(Duration.ofSeconds(60))
