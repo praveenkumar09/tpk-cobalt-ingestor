@@ -1,63 +1,20 @@
-services:
+# Intentionally empty of infra services.
+#
+# This is the older, regex-based ingestor — cobol-ingestor-api (the
+# LLM-driven chunk analyzer) superseded it. This compose file used to define
+# its own postgres/pgadmin/neo4j containers, reusing the exact SAME
+# container names (cobalt_postgres, cobalt_pgadmin, cobalt_neo4j) that
+# cobalt-rag-api/docker-compose.yml uses for its own infra — running this
+# stack while cobalt-rag-api's was up would fail on a name conflict, and
+# running it instead (with cobalt-rag-api's stack down) risked silently
+# diverging into a different volume under the same names.
+#
+# There is now exactly one Postgres + Neo4j pair for local dev, owned by
+# cobalt-rag-api/docker-compose.yml:
+#   cd ../cobalt-rag-api && docker compose up -d postgres neo4j
+# If you still need to run this older ingestor, point it at those
+# containers via the same PG_HOST/PG_PORT/NEO4J_URI env vars
+# cobol-ingestor-api uses (defaults of localhost:5432 / bolt://localhost:7687
+# already match, since those ports are exposed to the host).
 
-  postgres:
-    image: pgvector/pgvector:pg16
-    container_name: cobalt_postgres
-    environment:
-      POSTGRES_DB: ingestor
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d ingestor"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: cobalt_pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "5050:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-      - ./docker/pgadmin_servers.json:/pgadmin4/servers.json
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-  neo4j:
-    image: neo4j:5
-    container_name: cobalt_neo4j
-    environment:
-      NEO4J_AUTH: neo4j/admin
-      NEO4J_PLUGINS: '["apoc"]'
-      NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
-      NEO4J_dbms_security_auth__minimum__password__length: "4"
-      NEO4J_server_memory_heap_initial__size: "512m"
-      NEO4J_server_memory_heap_max__size: "1G"
-    ports:
-      - "7474:7474"
-      - "7687:7687"
-    volumes:
-      - neo4j_data:/data
-      - neo4j_logs:/logs
-    healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u neo4j -p admin 'RETURN 1' || exit 1"]
-      interval: 10s
-      timeout: 10s
-      retries: 20
-      start_period: 30s
-
-volumes:
-  postgres_data:
-  pgadmin_data:
-  neo4j_data:
-  neo4j_logs:
+services: {}
