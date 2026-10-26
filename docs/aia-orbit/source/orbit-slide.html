@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>AIA Orbit: one-slide EXCO view</title>
+<style>
+@page{size:1920px 1080px;margin:0}
+:root{--red:#D31145;--deep:#6E0A27;--wine:#3B0516;--blush:#FCE8EE;--ink:#1D1D1F;--grey:#6E6E73;--line:#EBD3DA}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden}
+body{font-family:"Avenir Next","Helvetica Neue",Arial,sans-serif;color:var(--ink);background:#FFF8FA;-webkit-print-color-adjust:exact;print-color-adjust:exact;position:relative}
+/* background texture */
+.bg{position:absolute;inset:0;background:
+ radial-gradient(900px 600px at 100% -10%,rgba(211,17,69,.14),transparent 60%),
+ radial-gradient(700px 500px at -5% 45%,rgba(211,17,69,.07),transparent 60%),#FFF8FA}
+.wrap{position:absolute;inset:0;padding:34px 56px 0}
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;height:60px}
+.brand{display:flex;align-items:center;gap:14px}
+.brand img{width:54px;height:54px;border-radius:14px;box-shadow:0 6px 16px -6px rgba(211,17,69,.6)}
+.brand b{font-size:25px;letter-spacing:.14em;font-weight:700;color:var(--red)}
+.brand span{font-size:25px;letter-spacing:.14em;font-weight:500;color:var(--ink)}
+.tag{font-size:15px;font-weight:700;letter-spacing:.16em;color:var(--red);border:2px solid var(--red);border-radius:99px;padding:8px 18px}
+/* hero */
+.hero{display:grid;grid-template-columns:1fr 640px;gap:44px;margin-top:14px;height:262px}
+h1{font-size:54px;line-height:1.05;font-weight:700;letter-spacing:-.02em}
+h1 em{font-style:normal;color:var(--red)}
+.sub{margin-top:12px;font-size:19.5px;line-height:1.36;color:#3A3A3F;max-width:1120px}
+.sub b{color:var(--ink)}
+.flow{position:relative;border-radius:30px;background:linear-gradient(140deg,var(--wine),var(--deep) 40%,var(--red));color:#fff;padding:20px 26px;overflow:hidden;box-shadow:0 30px 50px -28px rgba(211,17,69,.8)}
+.flow:before{content:"";position:absolute;right:-90px;top:-90px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(255,150,175,.55),transparent 65%)}
+.flow .k{font-size:13px;letter-spacing:.2em;font-weight:700;color:#FFC9D6}
+.flow .big{display:flex;align-items:baseline;gap:12px;margin-top:6px;position:relative}
+.flow .big strong{font-size:84px;line-height:.95;font-weight:700;letter-spacing:-.03em}
+.flow .big>span{font-size:24px;font-weight:600;color:#FFE3EA}
+.flow .big{align-items:center}
+.juno{margin-left:auto;display:flex;align-items:center;gap:10px;width:268px;padding:9px 12px;border-radius:20px;background:rgba(255,255,255,.95);color:var(--ink);box-shadow:0 14px 28px -12px rgba(0,0,0,.55);position:relative}
+.juno:after{content:"";position:absolute;inset:-4px;border-radius:24px;border:2px solid rgba(255,255,255,.45);animation:none}
+.juno img{width:46px;height:46px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 3px var(--blush)}
+.juno b{display:block;font-size:17px;font-weight:700;color:var(--red);line-height:1.1}
+.juno span{display:block;font-size:12.5px;font-weight:500;line-height:1.28;color:#3A3A3F;margin-top:2px}
+.juno i{font-style:normal;font-weight:700;color:var(--ink)}
+.wave{display:flex;align-items:center;gap:5px;height:44px;margin:8px 0 6px;position:relative}
+.wave i{display:block;width:6px;border-radius:3px;background:linear-gradient(#fff,#FFB3C6)}
+.wave .arrow{margin-left:8px;font-size:30px;color:#FFC9D6;line-height:1}
+.out{display:flex;flex-wrap:nowrap;gap:7px;position:relative}
+.out span{font-size:13px;white-space:nowrap;font-weight:700;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);border-radius:99px;padding:5px 10px;backdrop-filter:blur(2px)}
+/* middle panels */
+.mid{display:grid;grid-template-columns:1fr 1.18fr;gap:28px;margin-top:18px;height:356px}
+.panel{background:#fff;border-radius:28px;padding:18px 28px 14px;border:1.5px solid var(--line);position:relative;box-shadow:0 20px 40px -30px rgba(110,10,39,.45)}
+.panel:before{content:"";position:absolute;left:0;top:26px;bottom:26px;width:6px;border-radius:0 6px 6px 0;background:var(--red)}
+.ph{display:flex;align-items:baseline;gap:14px;margin-bottom:10px}
+.ph .n{font-size:13px;font-weight:700;letter-spacing:.2em;color:#fff;background:var(--red);border-radius:8px;padding:4px 10px}
+.ph h2{font-size:30px;font-weight:700;letter-spacing:-.01em}
+.ph p{margin-left:auto;font-size:15px;font-style:italic;color:var(--grey)}
+.list{display:grid;gap:8px}
+.it{display:grid;grid-template-columns:46px 1fr;gap:14px;align-items:center}
+.ic{width:46px;height:46px;border-radius:14px;background:var(--blush);display:grid;place-items:center}
+.ic svg{width:28px;height:28px;stroke:var(--red);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.it b{display:block;font-size:19px;font-weight:700;line-height:1.15}
+.it span{font-size:15.5px;color:#4A4A50;line-height:1.28;display:block}
+.grid6{display:grid;grid-template-columns:1fr 1fr;gap:15px 22px}
+.callout{margin-top:16px;border-radius:18px;background:linear-gradient(100deg,var(--blush),#fff);border:1.5px solid var(--line);padding:12px 18px;font-size:16.5px;line-height:1.35;color:#3A3A3F}
+.callout b{color:var(--red)}
+.grid6 .it{grid-template-columns:46px 1fr}
+/* market band */
+.mkt{position:absolute;left:0;right:0;bottom:0;height:300px;background:linear-gradient(160deg,var(--wine),var(--deep) 55%,#A30D36);color:#fff;padding:20px 56px 0;overflow:hidden}
+.mkt:before{content:"";position:absolute;left:-120px;bottom:-200px;width:700px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(211,17,69,.55),transparent 65%)}
+.mh{display:flex;align-items:center;gap:14px;position:relative}
+.mh .live{width:11px;height:11px;border-radius:50%;background:#7CFFB2;box-shadow:0 0 0 5px rgba(124,255,178,.25)}
+.mh b{font-size:14px;letter-spacing:.22em;font-weight:700}
+.mh span{font-size:20px;font-weight:600;color:#FFE3EA;margin-left:8px}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr 1.25fr;gap:18px;margin-top:14px;position:relative}
+.st{border-radius:22px;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.22);padding:16px 20px;height:156px;backdrop-filter:blur(3px)}
+.st .v{font-size:52px;font-weight:700;line-height:1;letter-spacing:-.02em}
+.st .v small{font-size:26px;font-weight:700;margin-left:2px}
+.st p{margin-top:8px;font-size:15.5px;line-height:1.3;color:#FFE3EA}
+.st.hot{background:#fff;color:var(--ink);border:none;box-shadow:0 20px 40px -20px rgba(0,0,0,.5)}
+.st.hot .v{color:var(--red)}
+.st.hot p{color:#3A3A3F}
+.st.hot em{font-style:normal;font-weight:700;color:var(--red)}
+.foot{position:absolute;left:56px;right:56px;bottom:13px;display:flex;justify-content:space-between;gap:30px;font-size:11.5px;line-height:1.35;color:#F3B9C8}
+.foot b{color:#fff}
+
+.strike{position:relative;display:inline-block;color:#FFC9D6;font-size:60px;font-weight:700;letter-spacing:-.02em}
+.strike:after{content:"";position:absolute;left:-4px;right:-4px;top:54%;height:6px;border-radius:3px;background:#fff;transform:rotate(-4deg)}
+.dayrow{display:flex;gap:5px;margin:10px 0 8px;position:relative}.dayrow i{display:block;width:18px;height:18px;border-radius:5px;background:rgba(255,255,255,.28)}
+.dayrow i.on{background:#FFC9D6}
+.flow .big strong.min{font-size:84px}
+.st .v.txt{font-size:46px;letter-spacing:.02em}
+.hero .sub{max-width:1140px}
+
+.juno{margin-left:auto;display:flex;align-items:center;gap:10px;width:262px;padding:9px 12px;border-radius:20px;background:rgba(255,255,255,.96);color:var(--ink);box-shadow:0 14px 28px -12px rgba(0,0,0,.55);position:relative}
+.juno img{width:48px;height:48px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 3px var(--blush);object-fit:cover}
+.juno b{display:block;font-size:17px;font-weight:700;color:var(--red);line-height:1.1}
+.juno span{display:block;font-size:12.500px;font-weight:500;line-height:1.28;color:#3A3A3F;margin-top:2px}
+.juno i{font-style:normal;font-weight:700;color:var(--ink)}
+.flow .big{align-items:center;gap:14px}
+.flow .big>span.strike{font-size:58px;color:#FFC9D6;font-weight:700}
+.flow .juno{position:absolute;right:20px;top:16px;margin:0;width:262px}
+.cmp{display:flex;align-items:baseline;gap:14px;margin:46px 0 12px;white-space:nowrap;position:relative}
+.cmp .strike{font-size:46px}.cmp .arr{font-size:34px;color:#FFC9D6}.cmp strong{font-size:80px;font-weight:700;letter-spacing:-.03em;line-height:1}
+.flow .k{line-height:1.5}
+</style></head><body>
+<div class="bg"></div>
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><img src="__FACE__"><b>AIA</b><span>ORBIT</span></div>
+    <div class="tag">EXCO PRE-READ · ONE-SLIDE VIEW</div>
+  </div>
+  <div class="hero">
+    <div>
+      <h1>Only a few people can read the code that runs our business.<br><em>Orbit lets everyone ask it.</em></h1>
+      <p class="sub"><b>AIA Orbit is a next-generation knowledge copilot for our core systems.</b> Ask in plain English, get answers in business language, see what a change would touch, and have the requirement, the tests and a compiler-checked code change drafted.</p>
+    </div>
+    <div class="flow">
+      <div class="k">A COMPLICATED QUESTION,<br>ANSWERED</div>
+      <div class="juno"><img src="__FACE__"><div><b>Meet Orbit</b><span>Your knowledge copilot. <i>Just ask.</i></span></div></div>
+      <div class="cmp"><span class="strike">7–15 days</span><span class="arr">➜</span><strong>minutes</strong></div>
+      <div class="out"><span>Scenario walkthrough</span><span>Impact map</span><span>Requirement</span><span>Test scenarios</span><span>Code change</span></div>
+    </div>
+  </div>
+  <div class="mid">
+    <div class="panel">
+      <div class="ph"><span class="n">SLIDE 1</span><h2>Business and product owners</h2><p>“Ask the system itself.”</p></div>
+      <div class="list">
+        <div class="it"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg></div><div><b>Answers on demand</b><span>Plain English in, business language out, no queue</span></div></div>
+        <div class="it"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 5.5C4 4.7 4.7 4 5.5 4H11v15H5.5C4.7 19 4 18.300 4 17.500z"/><path d="M20 5.5c0-.8-.7-1.500-1.500-1.500H13v15h5.500c.8 0 1.500-.7 1.500-1.500z"/></svg></div><div><b>Rules made visible</b><span>Business rules, decision tables, flows, built from the code</span></div></div>
+        <div class="it"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8 7l8 .8M7 8l4 8M17 10l-4 6"/></svg></div><div><b>Impact before you commit</b><span>What a change touches: directly, also, downstream</span></div></div>
+        <div class="it"><div class="ic"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg></div><div><b>Requirements and tests drafted</b><span>A first draft from how the system really behaves</span></div></div>
+        <div class="it"><div class="ic"><svg viewBox="0 0 24 24"><path d="M9 7l-5 5 5 5M15 7l5 5-5 5"/><path d="M13.500 5l-3 14"/></svg></div><div><b>Answers you can trace</b><span>Every answer cites the programs behind it</span></div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ph"><span class="n">SLIDE 2</span><h2>For AIA Singapore</h2><p>“Knowledge that belongs to AIA, not a few people.”</p></div>
+      <div class="grid6">
+        <div class="it"><div class="ic"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div><div><b>Knowledge protected</b><span>Survives retirements and role changes</span></div></div>
+        <div class="it"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 3c4 2 6 6 5 11l-3 3h-4l-3-3c-1-5 1-9 5-11z"/><circle cx="12" cy="10" r="1.800"/><path d="M8 17l-3 4M16 17l3 4"/></svg></div><div><b>Faster delivery of change</b><span>Weeks of manual tracing disappear</span></div></div>
+        <div class="it"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.500 8-8 9-4.500-1-8-4-8-9V6z"/><path d="M8.500 12l2.500 2.500L16 9.500"/></svg></div><div><b>Lower change risk</b><span>Impact seen before the work begins</span></div></div>
+        <div class="it"><div class="ic"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></div><div><b>Stronger audit trail</b><span>Rules explained and traced to the code</span></div></div>
+        <div class="it"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.500"/><path d="M2.500 20c.5-4 3-6 6.500-6s6 2 6.500 6"/><path d="M16 5a3.500 3.500 0 0 1 0 7M18 14c2 .8 3.200 2.800 3.500 6"/></svg></div><div><b>Specialists freed</b><span>Fewer repeat questions, more engineering</span></div></div>
+        <div class="it"><div class="ic"><svg viewBox="0 0 24 24"><path d="M3 17l5-5 4 3 8-9"/><path d="M15 6h5v5"/></svg></div><div><b>Ready for modernisation</b><span>Know what you have before you move it</span></div></div>
+      </div>
+      <div class="callout"><b>Beyond answers, to action:</b> a coding agent carries a question through to a compiler-checked change proposal, always for a person to review.</div>
+    </div>
+  </div>
+</div>
+<div class="mkt">
+  <div class="mh"><i class="live"></i><b>WHY NOW · REGULATION, TECHNOLOGY AND THE MARKET</b><span>The systems are not going away, and the people who know them are scarce.</span></div>
+  <div class="stats">
+    <div class="st"><div class="v">70+<small>%</small></div><p><b>of business transactions worldwide</b> are said to run on COBOL (IBM-cited)</p></div>
+    <div class="st"><div class="v">≈15<small>%</small></div><p><b>Projected 2026 IT-spend growth</b> for Asia-Pacific life insurers (Celent, 219 insurers)</p></div>
+    <div class="st"><div class="v txt">MAS</div><p><b>Proposes tighter change-management controls</b> for insurers; consultation closed 31 Jul 2026, 12 months to comply once final</p></div>
+    <div class="st hot"><div class="v">≈200<small> hrs</small></div><p><b>a month</b> if 100 routine questions at 2 hours each no longer need a specialist. <i>Illustration; AIA’s own baseline first.</i></p></div>
+  </div>
+  <div class="foot">
+    <div><b>Sources:</b> IBM claim as reported by NextBigFuture (2020) · Celent, Asia Pacific Life Insurance IT Pressures &amp; Priorities 2026 · MAS Technology Risk Management Notices consultation (law-firm summaries, still a proposal).</div>
+    <div>7–15 days is the COBOL team’s estimate of elapsed time, not effort; “minutes” to be confirmed in the pilot.</div>
+  </div>
+</div>
+
+</body></html>
